@@ -22,9 +22,11 @@
 // MODIFIED by IBM (Rahman Abber Tahir)
 // END MODIFIED
 
+#include <string>
 #include <vector>
 
 #include "absl/log/log.h"
+#include "absl/strings/string_view.h"
 
 // MODIFIED: unneeded include:
 //#include "src/core/util/crash.h"
@@ -68,12 +70,13 @@ ProtoReflectionDescriptorDatabase::~ProtoReflectionDescriptorDatabase() {
 }
 
 bool ProtoReflectionDescriptorDatabase::FindFileByName(
-    const string& filename, protobuf::FileDescriptorProto* output) {
+    absl::string_view filename, protobuf::FileDescriptorProto* output) {
+  const std::string filename_str(filename);
   if (cached_db_.FindFileByName(filename, output)) {
     return true;
   }
 
-  if (known_files_.find(filename) != known_files_.end()) {
+  if (known_files_.find(filename_str) != known_files_.end()) {
     return false;
   }
 
@@ -111,12 +114,13 @@ bool ProtoReflectionDescriptorDatabase::FindFileByName(
 }
 
 bool ProtoReflectionDescriptorDatabase::FindFileContainingSymbol(
-    const string& symbol_name, protobuf::FileDescriptorProto* output) {
+    absl::string_view symbol_name, protobuf::FileDescriptorProto* output) {
+  const std::string symbol_str(symbol_name);
   if (cached_db_.FindFileContainingSymbol(symbol_name, output)) {
     return true;
   }
 
-  if (missing_symbols_.find(symbol_name) != missing_symbols_.end()) {
+  if (missing_symbols_.find(symbol_str) != missing_symbols_.end()) {
     return false;
   }
 
@@ -135,7 +139,7 @@ bool ProtoReflectionDescriptorDatabase::FindFileContainingSymbol(
              ServerReflectionResponse::MessageResponseCase::kErrorResponse) {
     const ErrorResponse& error = response.error_response();
     if (error.error_code() == StatusCode::NOT_FOUND) {
-      missing_symbols_.insert(symbol_name);
+      missing_symbols_.insert(symbol_str);
       LOG(INFO) << "NOT_FOUND from server for FindFileContainingSymbol("
                 << symbol_name << ")";
     } else {
@@ -154,16 +158,17 @@ bool ProtoReflectionDescriptorDatabase::FindFileContainingSymbol(
 }
 
 bool ProtoReflectionDescriptorDatabase::FindFileContainingExtension(
-    const string& containing_type, int field_number,
+    absl::string_view containing_type, int field_number,
     protobuf::FileDescriptorProto* output) {
+  const std::string containing_type_str(containing_type);
   if (cached_db_.FindFileContainingExtension(containing_type, field_number,
                                              output)) {
     return true;
   }
 
-  if (missing_extensions_.find(containing_type) != missing_extensions_.end() &&
-      missing_extensions_[containing_type].find(field_number) !=
-          missing_extensions_[containing_type].end()) {
+  if (missing_extensions_.find(containing_type_str) != missing_extensions_.end() &&
+      missing_extensions_[containing_type_str].find(field_number) !=
+          missing_extensions_[containing_type_str].end()) {
     LOG(INFO) << "nested map.";
     return false;
   }
@@ -186,11 +191,11 @@ bool ProtoReflectionDescriptorDatabase::FindFileContainingExtension(
              ServerReflectionResponse::MessageResponseCase::kErrorResponse) {
     const ErrorResponse& error = response.error_response();
     if (error.error_code() == StatusCode::NOT_FOUND) {
-      if (missing_extensions_.find(containing_type) ==
+      if (missing_extensions_.find(containing_type_str) ==
           missing_extensions_.end()) {
-        missing_extensions_[containing_type] = {};
+        missing_extensions_[containing_type_str] = {};
       }
-      missing_extensions_[containing_type].insert(field_number);
+      missing_extensions_[containing_type_str].insert(field_number);
       LOG(INFO) << "NOT_FOUND from server for FindFileContainingExtension("
                 << containing_type << ", " << field_number << ")";
     } else {
@@ -212,10 +217,11 @@ bool ProtoReflectionDescriptorDatabase::FindFileContainingExtension(
 }
 
 bool ProtoReflectionDescriptorDatabase::FindAllExtensionNumbers(
-    const string& extendee_type, std::vector<int>* output) {
-  if (cached_extension_numbers_.find(extendee_type) !=
+    absl::string_view extendee_type, std::vector<int>* output) {
+  const std::string extendee_str(extendee_type);
+  if (cached_extension_numbers_.find(extendee_str) !=
       cached_extension_numbers_.end()) {
-    *output = cached_extension_numbers_[extendee_type];
+    *output = cached_extension_numbers_[extendee_str];
     return true;
   }
 
@@ -232,7 +238,7 @@ bool ProtoReflectionDescriptorDatabase::FindAllExtensionNumbers(
           kAllExtensionNumbersResponse) {
     auto number = response.all_extension_numbers_response().extension_number();
     *output = std::vector<int>(number.begin(), number.end());
-    cached_extension_numbers_[extendee_type] = *output;
+    cached_extension_numbers_[extendee_str] = *output;
     return true;
   } else if (response.message_response_case() ==
              ServerReflectionResponse::MessageResponseCase::kErrorResponse) {
